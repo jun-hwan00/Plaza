@@ -1,75 +1,60 @@
-# <img src="./src/shared/asset/images/character.png" width="60" /> Plaza - 모임 장소 추천 서비스
-<img width="512" height="300" alt="KakaoTalk_20250910_202620675" src="https://github.com/user-attachments/assets/3527779b-3532-48ad-aee5-275571447ac3" />
+ Plaza
+모임 멤버들의 위치와 선호도를 기반으로 최적의 장소와 장소 간 동선을 추천해주는 모임 장소 추천 서비스
 
-<br>
- <br>
- >> 모임 멤버들의 위치와 선호도를 기반으로 최적의 장소와 장소들 사이 동선을 추천해주는 웹 애플리케이션
+여러 명이 각자 다른 곳에서 출발하는 모임에서, 멤버들의 출발지·선호 장소 유형·분위기·모임 시간대를 입력받아 동선상 합리적인 지역과 장소 코스를 추천합니다.
 
-<!-- 배포 링크가 있다면 아래 주석을 해제하세요 -->
-<!-- 🔗 [서비스 바로가기](https://your-deploy-url.vercel.app) -->
+저장소: https://github.com/underrRndezvous/FrontEnd
+기술 스택
+React TypeScript Vite TailwindCSS Zustand TanStack Query dnd kit Naver Maps
 
-<br/>
+담당 역할 및 기여
+기능	구현 내용
+모임 생성 플로우	이름/목적/시간대/장소 선호도/출발지/요약 6단계 폼 UI 및 상태 연결
+지도 & 코스 편집	네이버 지도 마커 렌더링, 드래그 정렬, 추천 장소 코스 편입
+공유 기능	카카오톡 커스텀 템플릿 공유 연동
+상태 관리	Zustand 전역 스토어 설계, sessionStorage persist
+API 연동	모임 생성/조회, 가게 상세 조회 API 및 TanStack Query 훅 설계
+공통 UI/라우팅	StepFormLayout, stepNavigation 등 공용 컴포넌트, 라우트 테이블 구성
+주요 구현
+1. 원형 UI 기반 시간대 선택 위젯 (timeSelector)
 
-## 주요 기능
-<img width="230" height="400" alt="스크린샷 2025-09-10 202716" src="https://github.com/user-attachments/assets/bee430b9-23e3-46ad-b9c8-e482d37876e3" />
+아침/점심/오후/저녁 4개 구간을 시계처럼 인지할 수 있도록, 4분면 버튼 그리드 전체를 45도 회전시키고 내부 텍스트는 반대로 -45도 회전시켜 원형 선택 UI를 구현했습니다. 내부적으로는 store의 enum 값(MORNING 등)과 DOM id(morning)를 매핑 테이블로 변환해, UI 표현과 상태 모델을 분리했습니다.
 
-<img width="230" height="400" alt="스크린샷 2025-09-10 202733" src="https://github.com/user-attachments/assets/aa27a282-5f83-4d15-9cbf-d905a9de2e1d" />
+2. dnd-kit 기반 장소 우선순위 드래그 정렬
 
-<br>
+@dnd-kit/sortable의 useSortable을 이용해 장소 리스트의 순서를 드래그로 조정할 수 있도록 구현했습니다. 드래그 핸들 버튼에만 attributes/listeners를 부착해 항목 클릭(상세 이동)과 드래그 시작 제스처가 서로 간섭하지 않도록 분리했고, 순서 변경 시 arrayMove로 배열을 갱신해 화면에 즉시 반영했습니다.
 
-### 1. 모임 생성
-- 모임 이름과 목적 입력
-- 요일 및 시간대 선택
-- 장소 유형 선호도 설정 (음식점, 카페, 술집, 액티비티)
-- 드래그 앤 드롭으로 장소 우선순위 정렬
+3. 네이버 지도 기반 코스 편집 및 장소 편입
 
-### 2. 출발지 설정
+최종 결과 화면(Step3)에서 react-naver-maps로 지역 내 전체 추천 장소를 지도에 표시하고, 카테고리·코스 포함 여부에 따라 다른 형태의 커스텀 마커(선택 카테고리는 원형, 현재 코스에 포함된 곳은 순번이 표시된 핀)를 렌더링했습니다. 지도에 표시된 장소 중 현재 코스에 없는 곳을 클릭하면 상세 모달에서 "코스에 추가하기"로 즉시 편입할 수 있도록 하여, 추천받은 지역 전체를 탐색하며 나만의 동선을 직접 구성할 수 있게 했습니다.
 
+4. TanStack Query 기반 서버 상태 관리
 
+모임 추천 요청은 useMutation, 모임/가게 상세 조회는 useQuery로 분리했습니다. 여러 장소의 상세 정보를 한 번에 불러와야 하는 화면에서는 Promise.all로 병렬 요청하는 useMultipleStoreDetails 훅을 만들어 순차 호출로 인한 대기 시간을 줄였고, staleTime과 enabled 옵션으로 불필요한 재요청과 조건부 조회를 제어했습니다.
 
-- 카카오 지도 기반 출발지 검색
-- 멤버별 출발 위치 지정
+트러블슈팅
+1. 공유 링크로 직접 진입 시 결과 화면이 빈 화면으로 뜨는 문제
 
-### 3. 장소 추천 결과
-- 네이버 지도에 추천 장소 표시
-- 장소별 평점, 영업시간, 리뷰 정보 제공
-- 모임 정보 수정 기능
+모임 결과는 추천 API 응답을 navigate의 location.state로 다음 화면에 전달하는 방식으로 렌더링했습니다. 그런데 카카오톡 공유 링크를 눌러 결과 화면(Step3)에 직접 진입하거나 새로고침을 하면, 페이지가 새로 마운트되면서 location.state가 비어 있어 추천 지역 데이터를 그릴 수 없는 문제가 발생했습니다. 공유 기능 자체가 "state가 없는 진입"을 전제로 하는 기능인데, 화면은 state가 있다는 것만 가정하고 있었던 것이 원인이었습니다.
 
-<br/>
+URL 쿼리의 모임 ID로 서버에서 데이터를 다시 조회하는 useMeetingDetail 쿼리를 추가하고, location.state가 있으면 우선 사용하고 없으면 서버 재조회 결과로 대체하도록 두 데이터 소스를 병합했습니다. 이후 공유 링크로 처음 들어온 사용자, 새로고침한 사용자 모두 동일한 결과 화면을 볼 수 있게 되었습니다.
 
-## 기술 스택
+2. 다중 출발지 입력값과 스토어 상태 간 동기화
 
-| 분류 | 기술 |
-|------|------|
-| **Framework** | React 18, TypeScript |
-| **Build** | Vite |
-| **Styling** | Tailwind CSS |
-| **상태 관리** | Zustand, TanStack React Query |
-| **지도** | Kakao Maps SDK, React Naver Maps |
-| **애니메이션** | Framer Motion |
-| **DnD** | @dnd-kit |
-| **HTTP** | Axios |
-| **배포** | Vercel |
+출발지를 여러 개 추가·삭제할 수 있는 폼에서, 사용자가 입력 중인 문자열(표시용 텍스트)과 스토어에 저장되는 구조화된 주소(first/second/third)를 함께 관리해야 했습니다. 처음에는 입력이 바뀔 때마다 스토어를 바로 갱신했는데, 그러면 리렌더 시점에 화면에 보이던 입력값이 스토어의 구조화된 값으로 재조합되며 커서 위치가 튀거나 입력 중이던 텍스트가 초기화되는 문제가 있었습니다.
 
-<br/>
+각 출발지 항목의 고유 id를 기준으로 로컬 표시값(displayValues)과 스토어 상태를 분리해, 입력 중에는 로컬 상태만 갱신하도록 했습니다. 항목이 새로 추가되거나 삭제된 id만 골라 두 상태를 동기화하는 diff 로직을 두고, "다음" 버튼을 눌러 최종 제출하는 시점에만 정적 지역 데이터(region.json)와 대조해 유효한 행정구역인지 검증한 뒤 파싱된 주소를 스토어에 반영하도록 했습니다.
 
-## 프로젝트 구조
+프로젝트 구조
+FSD(Feature-Sliced Design) 아키텍처를 참고해 계층별로 디렉터리를 구성했습니다.
 
-```
 src/
-├── app/            # 앱 셸, 라우팅, 프로바이더
+├── app/            # 앱 셸, 라우팅, 프로바이더 (최상위 계층)
 ├── pages/          # 스텝별 페이지 (step0 ~ step3)
-├── widgets/        # 도메인별 위젯 컴포넌트
-├── features/       # 비즈니스 로직
-├── entities/       # 도메인 모델
-├── shared/         # 공용 UI, API, 훅, 에셋
+├── widgets/        # 여러 feature/entity를 조합한 도메인 단위 UI 블록
+├── features/       # 사용자 행동 단위 비즈니스 로직
+├── entities/       # 도메인 모델(모임, 장소 등)
+├── shared/         # 공용 UI, API 클라이언트, 훅, 에셋 (최하위 계층)
 ├── store/          # Zustand 전역 상태
 ├── hooks/          # 커스텀 훅
 └── types/          # TypeScript 타입 정의
-```
-
-<br/>
-
-
-
-
